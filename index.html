@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HR Interview Dashboard</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      th { background-color: #f2f2f2; }
+      .button-container { margin-top: 10px; }
+      .loader { display: none; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <h1>HR Interview Dashboard</h1>
+    <div id="loader" class="loader"></div>
+    <div id="candidateList"></div>
+
+    <script>
+      // Load candidates when the page loads
+      window.onload = loadCandidates;
+
+      function loadCandidates() {
+        showLoader();
+        google.script.run
+          .withSuccessHandler(displayCandidates)
+          .withFailureHandler(handleError)
+          .getCandidates();
+      }
+
+      function displayCandidates(candidatesJson) {
+        hideLoader();
+        const candidates = JSON.parse(candidatesJson);
+        const candidateList = document.getElementById('candidateList');
+        if (!candidates || candidates.length === 0) {
+          candidateList.innerHTML = '<p>No candidates found.</p>';
+          return;
+        }
+
+        let table = '<table><tr><th>Name</th><th>Email</th><th>Score Percentage</th><th>Action</th></tr>';
+        candidates.forEach(candidate => {
+          table += `
+            <tr>
+              <td>${candidate['Full Name'] || 'N/A'}</td>
+              <td>${candidate['Email Address'] || 'N/A'}</td>
+              <td>${typeof candidate['Score Percentage'] === 'number' ? (candidate['Score Percentage'] * 100).toFixed(2) + '%' : candidate['Score Percentage']}</td>
+              <td>
+                <input type="date" id="date-${candidate['Email Address']}">
+                <input type="time" id="time-${candidate['Email Address']}">
+                <button onclick="sendEmail('${candidate['Email Address']}', '${candidate['Full Name']}')">
+                  Send Interview Invite
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        table += '</table>';
+        candidateList.innerHTML = table;
+      }
+
+      function sendEmail(email, name) {
+        const dateElement = document.getElementById(`date-${email}`);
+        const timeElement = document.getElementById(`time-${email}`);
+        const date = dateElement.value;
+        const time = timeElement.value;
+
+        if (!date || !time) {
+          alert('Please select both date and time before sending the invite.');
+          return;
+        }
+
+        showLoader();
+        google.script.run
+          .withSuccessHandler(result => {
+            hideLoader();
+            alert(result);
+          })
+          .withFailureHandler(handleError)
+          .sendInterviewEmail(email, name, date, time);
+      }
+
+      function handleError(error) {
+        hideLoader();
+        console.error("Error:", error);
+        alert("An error occurred. Please check the console for details.");
+      }
+
+      function showLoader() {
+        document.getElementById('loader').style.display = 'block';
+      }
+
+      function hideLoader() {
+        document.getElementById('loader').style.display = 'none';
+      }
+    </script>
+  </body>
+</html>
